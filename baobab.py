@@ -28,12 +28,16 @@ def main():
             sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock1.bind(('0.0.0.0', 4169))
             sock1.listen(1)
+            sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock2.bind(('0.0.0.0', 4170))
             print("Server started on port 4169.")
             conn, addr = sock1.accept()
-            print(f"Connected by {addr}")
+            sock2.connect(addr)
         case 2:
             sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock1.bind(('0.0.0.0', 4169))
+            sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock2.bind(('0.0.0.0', 4170))
             is_connected = False
             while not is_connected:
                 addr = None
@@ -48,8 +52,12 @@ def main():
                     is_connected = True
                 except socket.error:
                     print("Unable to connect to the server.")
+                sock2.listen(1)
+                conn, addr = sock2.accept()
+
         case _:
             raise ValueError
+
 
 def is_addr_valid(addr: str) -> bool:
     if addr == "localhost":
