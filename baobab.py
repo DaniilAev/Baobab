@@ -1,8 +1,10 @@
-import socket, ssl, os, json, threading
+import socket, ssl, os, json, threading, cryptography
 def main():
+    name = "daniil" #TEMP
     #file indexing
     dir_path = "share\\"
     os.makedirs(dir_path, exist_ok=True)
+    os.makedirs("share", exist_ok=True)
     share_list = os.listdir(dir_path)
     files_json = json.dumps({file_name: os.path.getsize(dir_path + file_name) for file_name in share_list}, ensure_ascii=False)
     file_descriptors = {file_name: open(dir_path + file_name, 'rb') for file_name in share_list}
@@ -31,8 +33,16 @@ def main():
             sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock2.bind(('0.0.0.0', 4170))
             print("Server started on port 4169.")
-            conn, addr = sock1.accept()
-            sock2.connect(addr)
+            while True: #TEMP
+                conn, addr = sock1.accept()
+                client_name = conn.recv(1024).decode("ascii")
+                try:
+                    with open(f"hosts\{client_name}.json", "r") as file:
+                        client_data = json.loads(file.read())
+                except FileNotFoundError:
+                    conn.close()
+                    print("Client not found")
+
         case 2:
             sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock1.bind(('0.0.0.0', 4169))
@@ -40,38 +50,25 @@ def main():
             sock2.bind(('0.0.0.0', 4170))
             is_connected = False
             while not is_connected:
-                addr = None
-                while not addr:
-                    raw_addr = input("Enter the server address:\n")
-                    if is_addr_valid(raw_addr):
-                        addr = raw_addr
-                    else:
-                        print("Invalid address.")
+                addr_data = None
+                while not addr_data:
+                    servername = input("Enter the server's name:\n")
+                    try:
+                        with open(f"hosts\{servername}.json", "r") as file:
+                            server_data = json.loads(file.read())
+                    except FileNotFoundError:
+                        print("Server not found")
+                        continue
                 try:
-                    sock1.connect((addr, 4169))
+                    sock1.settimeout(10)
+                    sock1.connect((addr_data["address"], 4169))
+                    sock1.settimeout(None)
                     is_connected = True
-                except socket.error:
-                    print("Unable to connect to the server.")
-                sock2.listen(1)
-                conn, addr = sock2.accept()
-
+                except socket.timeout:
+                    print("Server timed out")
+            sock1.send(name.encode("ascii"))
         case _:
             raise ValueError
 
-
-def is_addr_valid(addr: str) -> bool:
-    if addr == "localhost":
-        return True
-    else:
-        octets = addr.split(".")
-        if len(octets) != 4:
-            return False
-        else:
-            for octet in octets:
-                if int(octet) < 0 or int(octet) > 255:
-                    return False
-            return True
-
-
-
-main()
+if __name__ == "__main__":
+    main()
