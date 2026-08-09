@@ -27,46 +27,65 @@ def main():
     #processing the mode
     match mode:
         case 1:
-            sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock1.bind(('0.0.0.0', 4169))
-            sock1.listen(1)
-            sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock2.bind(('0.0.0.0', 4170))
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.bind(('0.0.0.0', 4169))
+            sock.listen(2)
             print("Server started on port 4169.")
             while True: #TEMP
-                conn, addr = sock1.accept()
-                client_name = conn.recv(1024).decode("ascii")
                 try:
-                    with open(f"hosts\{client_name}.json", "r") as file:
+                    conn1, addr1 = sock.accept()
+                    conn1.settimeout(10)
+                    client_name = conn1.recv(1024).decode("ascii")
+                    conn1.send(b'\x06')
+                    conn1.settimeout(None)
+                except socket.error:
+                    print("Server timed out")
+                    conn1.close()
+                    continue
+                try:
+                    with open(f"hosts\\{client_name}.json", "r") as file:
                         client_data = json.loads(file.read())
+                        print(client_data)
                 except FileNotFoundError:
-                    conn.close()
+                    conn1.close()
                     print("Client not found")
+                    continue
+                    #####
 
         case 2:
             sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock1.bind(('0.0.0.0', 4169))
             sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock2.bind(('0.0.0.0', 4170))
             is_connected = False
             while not is_connected:
-                addr_data = None
-                while not addr_data:
+                server_data = None
+                while not server_data:
                     servername = input("Enter the server's name:\n")
                     try:
-                        with open(f"hosts\{servername}.json", "r") as file:
+                        with open(f"hosts\\{servername}.json", "r") as file:
                             server_data = json.loads(file.read())
                     except FileNotFoundError:
                         print("Server not found")
                         continue
+                    except json.decoder.JSONDecodeError:
+                        print("Unable to decode json")
                 try:
                     sock1.settimeout(10)
-                    sock1.connect((addr_data["address"], 4169))
+                    sock1.connect((server_data["address"], 4169))
                     sock1.settimeout(None)
                     is_connected = True
-                except socket.timeout:
+                except socket.error:
                     print("Server timed out")
-            sock1.send(name.encode("ascii"))
+            try:
+                sock1.send(name.encode("ascii"))
+                sock1.settimeout(10)
+                assert sock1.recv(1) == b"\x06"
+                sock1.settimeout(None)
+            except socket.error:
+                print("Timed out")
+            except AssertionError:
+                print("Unable to handshake")
+                #####
+
         case _:
             raise ValueError
 
